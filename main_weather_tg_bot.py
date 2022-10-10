@@ -1,14 +1,16 @@
+import emoji
 import requests
 import datetime
-
-from config import open_weather_token, token
 from aiogram import Bot, types
-from aiogram.dispatcher import Dispatcher
 from aiogram.utils import executor
-import emoji
+from aiogram.dispatcher import Dispatcher
+from config import open_weather_token, token
 
 bot = Bot(token=token)
 dp = Dispatcher(bot)
+
+
+cities = []
 
 
 @dp.message_handler(commands=["start"])
@@ -16,7 +18,10 @@ async def start_command(message: types.Message):
     await message.reply("Привет! Этот бот выводит информацию о погоде в любом городе,"
                         " который ты введешь. Чобы начать, введи название города!")
 
-cities = []
+
+@dp.message_handler(commands=['contacts'])
+async def process_contacts_command(message: types.Message):
+    await message.reply("По всем вопросам и предложениям вы можете написать мне на почту rudenkoalexey@ukr.net")
 
 
 @dp.message_handler()
@@ -65,16 +70,18 @@ async def get_weather(message: types.Message):
 
         keyboard = types.InlineKeyboardMarkup()
         keyboard.add(types.InlineKeyboardButton(text=f"{name}", callback_data="city"))
-        await message.answer(f"{datetime.datetime.now().strftime('%Y-%m-%d')}       "
-                             f"                    {datetime.datetime.now().strftime('%H:%M')}"
-                             f"\nГород: {name} {emoji.emojize(flag)}"
-                             f"\nТемпература: {cur_weather} С°"
-                             f"\n{wd}"
-                             f"\nОщущается как {feels_like} градусов"
-                             f"\nВлажность: {humidity} %"
-                             f"\nВосход в {sunrise_timestamp.strftime('%H:%M:%S')}"
+        await message.answer(f"{datetime.datetime.now().strftime('%Y-%m-%d')}"\
+                             f"                             {datetime.datetime.now().strftime('%H:%M')}"\
+                             f"\nГород: {name} {emoji.emojize(flag)}"\
+                             f"\nТемпература: {cur_weather} С°"\
+                             f"\n{wd}"\
+                             f"\nОщущается как {feels_like} градусов"\
+                             f"\nВлажность: {humidity} %"\
+                             f"\nВосход в {sunrise_timestamp.strftime('%H:%M:%S')}"\
                              f"\nЗакат в {sunset_timestamp.strftime('%H:%M:%S')}",
                              reply_markup=keyboard)
+
+
 
     except Exception:
         await message.reply("Проверьте название или введите название более крупного города\U00002620")
@@ -82,7 +89,11 @@ async def get_weather(message: types.Message):
 
 @dp.callback_query_handler(text="city")
 async def send_city(call: types.CallbackQuery):
-    await call.message.answer("роботаю над этим..")
+    await call.message.answer((cities))
+
+
+
+
 
 
 if __name__ == "__main__":
