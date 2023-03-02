@@ -6,11 +6,9 @@ from aiogram.utils import executor
 from aiogram.dispatcher import Dispatcher
 from config import open_weather_token, token
 
+
 bot = Bot(token=token)
 dp = Dispatcher(bot)
-
-
-cities = []
 
 
 @dp.message_handler(commands=["start"])
@@ -24,8 +22,7 @@ async def process_contacts_command(message: types.Message):
     await message.reply("По всем вопросам и предложениям вы можете написать мне на почту rudenkoalexey@ukr.net")
 
 
-@dp.message_handler()
-async def get_weather(message: types.Message):
+def get_weather_information(message_text):
 
     code_to_smile = {
         "Clear": "Ясно \U00002600",
@@ -44,11 +41,11 @@ async def get_weather(message: types.Message):
 
     try:
         r = requests.get(
-            f"https://api.openweathermap.org/data/2.5/weather?q={message.text}&appid={open_weather_token}&units=metric"
+            f"https://api.openweathermap.org/data/2.5/weather?q={message_text}&appid={open_weather_token}&units=metric"
         )
         data = r.json()
         name = data["name"]
-        cities.append(name)
+
         cur_weather = data["main"]["temp"]
 
         weather_description = data["weather"][0]["main"]
@@ -68,32 +65,46 @@ async def get_weather(message: types.Message):
         sunrise_timestamp = datetime.datetime.fromtimestamp(data["sys"]["sunrise"])
         sunset_timestamp = datetime.datetime.fromtimestamp(data["sys"]["sunset"])
 
-        keyboard = types.InlineKeyboardMarkup()
-        keyboard.add(types.InlineKeyboardButton(text=f"{name}", callback_data="city"))
-        await message.answer(f"{datetime.datetime.now().strftime('%Y-%m-%d')}"\
-                             f"                             {datetime.datetime.now().strftime('%H:%M')}"\
-                             f"\nГород: {name} {emoji.emojize(flag)}"\
-                             f"\nТемпература: {cur_weather} С°"\
-                             f"\n{wd}"\
-                             f"\nОщущается как {feels_like} градусов"\
-                             f"\nВлажность: {humidity} %"\
-                             f"\nВосход в {sunrise_timestamp.strftime('%H:%M:%S')}"\
-                             f"\nЗакат в {sunset_timestamp.strftime('%H:%M:%S')}",
-                             reply_markup=keyboard)
+        information = f"{datetime.datetime.now().strftime('%Y-%m-%d')}" \
+                             f"                             {datetime.datetime.now().strftime('%H:%M')}" \
+                             f"\nГород: {name} {emoji.emojize(flag)}" \
+                             f"\nТемпература: {cur_weather} С°" \
+                             f"\n{wd}" \
+                             f"\nОщущается как {feels_like} градусов" \
+                             f"\nВлажность: {humidity} %" \
+                             f"\nВосход в {sunrise_timestamp.strftime('%H:%M:%S')}" \
+                             f"\nЗакат в {sunset_timestamp.strftime('%H:%M:%S')}"
 
 
+
+        return information
 
     except Exception:
-        await message.reply("Проверьте название или введите название более крупного города\U00002620")
+        return ("Проверьте название или введите название более крупного города\U00002620")
 
 
-@dp.callback_query_handler(text="city")
-async def send_city(call: types.CallbackQuery):
-    await call.message.answer((cities))
+@dp.message_handler()
+async def request_weather(message: types.Message):
+    message_text = message.text
+    chat_id = message.chat.id
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(
+        types.InlineKeyboardButton(text=f"{message.text}", callback_data=f"city_name|{message_text}|{chat_id}"))
+
+    # , callback_data=f"city_name|{message}"))
+    message_text = message.text
+    await message.answer(get_weather_information(message_text), reply_markup=keyboard)
 
 
+@dp.callback_query_handler(lambda c: c.data.startswith('city_name'))
+async def send_city(callback_query: types.CallbackQuery):
+    city_name, message_text, chat_id = callback_query.data.split("|")
 
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(
+        types.InlineKeyboardButton(text=f"{message_text}", callback_data=f"city_name|{message_text}|{chat_id}"))
 
+    await bot.send_message(chat_id, text = f"{get_weather_information(message_text)}", reply_markup=keyboard)
 
 
 if __name__ == "__main__":
