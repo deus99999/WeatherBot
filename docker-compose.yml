@@ -1,0 +1,33 @@
+version: '3.11'
+services:
+  redis:
+    image: redis:alpine
+    command:
+      - redis-service
+    env_file:
+      - ./venv
+    restart: on-failure
+    ports:
+      - "6379:6379"
+  db:
+    image: postgres:14-alpine
+    env_file:
+      - ./venv
+    volumes:
+      - pgdata:var/lib/postgresql/data
+    restart: on-failure
+    ports:
+      - "5432:5432"
+  bot:
+    build: .
+    command: sh -c "make migrate && python -m bot"
+    env_file:
+      - ./venv
+    restart: always
+    depends_on:
+      - db
+      - redis
+
+
+volumes:
+  pgdata:
